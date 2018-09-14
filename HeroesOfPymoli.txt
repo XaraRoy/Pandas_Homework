@@ -1,0 +1,167 @@
+
+# coding: utf-8
+
+# ### Heroes Of Pymoli Data Analysis
+# * Of the 1163 active players, the vast majority are male (84%). There also exists, a smaller, but notable proportion of female players (14%).
+# 
+# * Our peak age demographic falls between 20-24 (44.8%) with secondary groups falling between 15-19 (18.60%) and 25-29 (13.4%).  
+# -----
+
+# ### Note
+# * Instructions have been included for each segment. You do not have to follow them exactly, but they are included to help you think through the steps.
+
+# In[1]:
+
+
+# Dependencies and Setup
+import pandas as pd
+import numpy as np
+
+# Raw data file
+file_to_load = "Resources/purchase_data.csv"
+
+# Read purchasing file and store into pandas data frame
+purchase_data = pd.read_csv(file_to_load)
+
+
+# In[2]:
+
+
+unique_player_count = purchase_data["SN"].nunique()
+print(f"There are {unique_player_count} unique players in Pymoli!")
+
+
+# In[3]:
+
+
+item_count = purchase_data['Item ID'].nunique()
+num_purchases = purchase_data['Item ID'].count()
+Avg_price = round(purchase_data["Price"].mean(), 2)
+Total_revenue = purchase_data["Price"].sum()
+Summary = pd.DataFrame({'Number of Unqiue Items': [item_count], 'Average Price': [Avg_price], 
+      "Number of Purchases": [num_purchases], "Total Revenue": Total_revenue})
+Summary.head()
+
+
+# In[4]:
+
+
+players = purchase_data[['Gender','SN']].drop_duplicates(keep = "first")
+gender_counts = players['Gender'].value_counts()
+percentage = round(gender_counts / gender_counts.sum() * 100,2)
+Genders = pd.concat([gender_counts,percentage ], axis = 1)
+Genders.columns = ["Player Count", "Percentage of Playerbase"]
+Genders
+
+
+# In[5]:
+
+
+Summary_DF = {'Average Price': 0,"Number of Purchases": 0,
+"Total Revenue": 0}
+Summary_DF = pd.DataFrame(Summary_DF, index = ('Female', 'Male', 'Other / Non-Disclosed'))
+Genders.join(Summary_DF, how="outer")
+
+
+# In[6]:
+
+
+##I Ran out of time, but I could made this more generic to work with most of the steps of this project##
+def Purchasing_Analysis_Gender(gender):
+    count_DF = purchase_data.loc[purchase_data['Gender'] == gender]
+    Genders.loc[gender, 'Number of Purchases'] = count_DF['Item ID'].count()
+    Genders.loc[gender, 'Average Price']  = round(count_DF["Price"].mean(), 2)
+    Genders.loc[gender, 'Total Revenue'] = (count_DF["Price"].sum())
+
+
+# In[7]:
+
+
+Purchasing_Analysis_Gender('Male')
+Purchasing_Analysis_Gender('Female')
+Purchasing_Analysis_Gender('Other / Non-Disclosed')
+Genders.head()
+
+
+# In[8]:
+
+
+# Establish bins for ages
+bins = [0, 9.90, 14.90, 19.90, 24.90, 29.90, 34.90, 39.90, 99999]
+group_names = ["0-10", "10-14", "15-19", "20-24", "25-29", "30-34", "35-39", "40+"]
+Age_Binned = pd.cut(purchase_data["Age"], bins, labels=group_names)
+Age_binned = pd.DataFrame(Age_Binned)
+purchase_data = purchase_data.set_index('Age')
+purchase_data = purchase_data.join(Age_binned, on="Age", how="outer")
+
+
+# In[9]:
+
+
+
+Ages = Age_Binned.value_counts()
+percentage = round(Ages / Ages.sum() * 100,2)
+Ages_DF = pd.concat([Ages ,percentage ], axis = 1)
+Ages_DF.columns = ["Player Count", "Percentage of Playerbase"]
+Summary_DF = {'Average Price': 0,"Number of Purchases": 0,
+                            "Total Revenue": 0}
+Summary_DF = pd.DataFrame(Summary_DF, index =group_names)
+Ages_DF = Ages_DF.join(Summary_DF, how="outer")
+purchase_data = purchase_data.rename(columns={'Age':'Age Group'})
+purchase_data = purchase_data.rename(columns={'Age':'Age Group'})
+purchase_data = purchase_data.dropna()
+
+
+# In[10]:
+
+
+for Age_Group in group_names:
+    age_grouped = purchase_data.loc[purchase_data['Age Group'] == Age_Group]
+    Ages_DF.loc[Age_Group, 'Average Price'] = round(age_grouped["Price"].mean(), 2)
+    Ages_DF.loc[Age_Group, 'Number of Purchases'] = age_grouped['Item ID'].count()
+    Ages_DF.loc[Age_Group, 'Total Revenue'] = (age_grouped["Price"].sum())
+
+Ages_DF.head()
+
+
+# In[11]:
+
+
+purchase_data = pd.read_csv(file_to_load)
+user_purchases = pd.DataFrame(purchase_data['SN'].value_counts())
+user_purchases['SN'] = user_purchases.index
+
+
+for SN in user_purchases['SN']:
+    SN_Group = purchase_data.loc[purchase_data['SN'] == SN]
+    user_purchases.loc[SN, 'Number of Purchases'] = SN_Group['Item ID'].count()
+    user_purchases.loc[SN, 'Average Purchase Price'] = round(SN_Group["Price"].mean(), 2)
+    user_purchases.loc[SN, 'Total Purchase Value'] = (SN_Group["Price"].sum())
+    
+user_purchases.sort_values(['Total Purchase Value'], ascending=False)
+user_purchases.head()
+
+
+# In[12]:
+
+
+Most_Popular_Items = purchase_data[['Item ID','Item Name', 'Price']]
+Popular_Items_Count = Most_Popular_Items.groupby(['Item ID','Item Name']).count()
+Popular_Items_Count['Occurences'] = pd.DataFrame(Popular_Items_Count)
+
+for id in purchase_data['Item ID']:
+    
+    I_Group = purchase_data.loc[purchase_data['Item ID'] == id]
+    Popular_Items_Count.loc[id, 'Total Purchase Value'] = (I_Group["Price"].sum())
+    ## THIS WOULDNT SAVE WITHOUT THE .MEAN() INCLUDED??##
+    Popular_Items_Count.loc[id, 'Price'] = round(I_Group["Price"].mean(), 2)
+Popular_Items_Count= Popular_Items_Count.sort_values('Occurences', ascending=False)
+Popular_Items_Count.head()
+
+
+# In[13]:
+
+
+Profitable_Items= Popular_Items_Count.sort_values('Total Purchase Value', ascending=False)
+Profitable_Items.head()
+
